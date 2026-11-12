@@ -1,0 +1,68 @@
+Spark 4.0.1, local[*], defaultParallelism=8
+file bytes: 205242368
+AQE=true, shuffle.partitions=200
+lines: 1891715
+
+--- warmup and partitions (outside timing)
+base: partitions=8, storage=Serialized 1x Replicated
+cache: partitions=8, storage=Disk Memory Deserialized 1x Replicated
+coalesce_2: partitions=2, storage=Serialized 1x Replicated
+repartition_16: partitions=16, storage=Serialized 1x Replicated
+hosts=81982, requests=1891700, dropped=15
+
+--- top-10
+piweba3y.prodigy.com             17571
+piweba4y.prodigy.com             11591
+piweba1y.prodigy.com             9868
+alyssa.prodigy.com               7852
+siltb10.orl.mmc.com              7573
+piweba2y.prodigy.com             5922
+edams.ksc.nasa.gov               5434
+163.206.89.4                     4906
+news.ti.com                      4863
+disarray.demon.co.uk             4353
+
+--- 5 rounds, 3 actions per variant, seconds
+round=1 base            actions=1.763,1.967,1.600 total=5.330
+round=1 cache           actions=2.161,0.884,0.703 total=3.748
+
+--- cached aggregation plan (outside timing)
+== Physical Plan ==
+AdaptiveSparkPlan isFinalPlan=false
++- HashAggregate(keys=[host#118], functions=[count(1)])
+   +- Exchange hashpartitioning(host#118, 200), ENSURE_REQUIREMENTS, [plan_id=679]
+      +- HashAggregate(keys=[host#118], functions=[partial_count(1)])
+         +- InMemoryTableScan [host#118]
+               +- InMemoryRelation [host#118], StorageLevel(disk, memory, deserialized, 1 replicas)
+                     +- *(1) Project [substring_index(value#116,  , 1) AS host#118]
+                        +- *(1) Filter (isnotnull(value#116) AND RLIKE(value#116, ^\S+ \S+ \S+ \[[^\]]+\] "[^"]*" \d{3} \S+$))
+                           +- FileScan text [value#116] Batched: false, DataFilters: [isnotnull(value#116), RLIKE(value#116, ^\S+ \S+ \S+ \[[^\]]+\] "[^"]*" \d{3} \S+$)], Format: Text, Location: InMemoryFileIndex(1 paths)[file:/Users/timofeiivankov/Desktop/mldb-hw5/data/NASA_access_log_Jul95], PartitionFilters: [], PushedFilters: [IsNotNull(value)], ReadSchema: struct<value:string>
+
+
+round=1 coalesce_2      actions=2.595,1.956,1.883 total=6.435
+round=1 repartition_16  actions=2.280,2.887,5.335 total=10.502
+round=2 cache           actions=3.054,1.821,1.266 total=6.141
+round=2 coalesce_2      actions=4.641,4.554,4.161 total=13.356
+round=2 repartition_16  actions=4.370,4.364,4.345 total=13.079
+round=2 base            actions=3.599,3.451,2.184 total=9.234
+round=3 coalesce_2      actions=4.596,3.203,2.961 total=10.759
+round=3 repartition_16  actions=2.882,1.935,2.406 total=7.223
+round=3 base            actions=2.427,1.730,1.633 total=5.790
+round=3 cache           actions=3.171,1.367,1.225 total=5.763
+round=4 repartition_16  actions=5.294,4.706,4.245 total=14.245
+round=4 base            actions=2.932,3.123,2.772 total=8.827
+round=4 cache           actions=3.235,1.086,1.540 total=5.861
+round=4 coalesce_2      actions=5.864,3.923,4.307 total=14.094
+round=5 base            actions=1.513,1.238,1.187 total=3.938
+round=5 cache           actions=1.948,0.818,0.878 total=3.644
+round=5 coalesce_2      actions=2.404,2.146,2.059 total=6.609
+round=5 repartition_16  actions=3.039,2.685,4.487 total=10.211
+
+--- medians, seconds
+variant          first    second   third    total    speedup
+base                2.427    1.967    1.633    5.790     1.00x
+cache               3.054    1.086    1.225    5.763     1.00x
+coalesce_2          4.596    3.203    2.961   10.759     0.54x
+repartition_16      3.039    2.887    4.345   10.502     0.55x
+
+full result identical in every action: True
